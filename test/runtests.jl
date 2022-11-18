@@ -5,23 +5,23 @@ using JuliaFormatter
 using Test
 
 DocMeta.setdocmeta!(
-    MyJuliaPackage,
+    JADE191,
     :DocTestSetup,
-    :(using MyJuliaPackage);
+    :(using JADE191);
     recursive=true
 )
 
 @testset "JADE191.jl" begin
     @testset verbose = true "Code quality (Aqua.jl)" begin
-        Aqua.test_all(MyJuliaPackage; ambiguities=false)
+        Aqua.test_all(JADE191; ambiguities=false)
     end
 
     @testset verbose = true "Code formatting (JuliaFormatter.jl)" begin
-        @test format(MyJuliaPackage; verbose=true, overwrite=false)
+        @test format(JADE191; verbose=true, overwrite=false)
     end
 
     @testset verbose = true "Doctests (Documenter.jl)" begin
-        doctest(MyJuliaPackage)
+        doctest(JADE191)
     end
 
     @testset verbose = true "My own tests" begin
