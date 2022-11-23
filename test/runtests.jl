@@ -4,12 +4,7 @@ using JADE191
 using JuliaFormatter
 using Test
 
-DocMeta.setdocmeta!(
-    JADE191,
-    :DocTestSetup,
-    :(using JADE191);
-    recursive=true
-)
+DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
 
 @testset "JADE191.jl" begin
     @testset verbose = true "Code quality (Aqua.jl)" begin
@@ -25,6 +20,6 @@ DocMeta.setdocmeta!(
     end
 
     @testset verbose = true "My own tests" begin
-	@test 1 + 1 == 2
+        @test 1 + 1 == 2
     end
 end
