@@ -2,13 +2,21 @@ module JADE191
 
 using HashCode2014
 
+"""
+    buildAdjacencyMatrix(city)
+
+Compute an adjaceny matrix to represent the connections between junctions.
+
+Returns a Dict D where D[A] is a vector of all
+junctions connected to A by a street.
+"""
 function buildAdjacencyMatrix(city)
     adjacencyMatrix = Dict()
 
     for street in city.streets
         push!(
             get!(adjacencyMatrix, street.endpointA, []),
-            (street.endpointB, street.duration, street.distance)
+            (street.endpointB, street.duration, street.distance),
         )
 
         if !street.bidirectional
@@ -17,13 +25,23 @@ function buildAdjacencyMatrix(city)
 
         push!(
             get!(adjacencyMatrix, street.endpointB, []),
-            (street.endpointA, street.duration, street.distance)
+            (street.endpointA, street.duration, street.distance),
         )
     end
 
     return adjacencyMatrix
 end
 
+"""
+    getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
+
+Compute the next vertex in a given walk.
+
+Returns a Tuple (N, T) where both elements are nothing if the function failed
+to find a street which is crossable in the amount of time left. If the
+function is able to find such a street, then N is the next vector in the path
+and T is the amount of time it takes to travel from the current vertex to N.
+"""
 function getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
     current_max_distance = -Inf
     current_next_vertex = nothing
@@ -31,9 +49,11 @@ function getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
     neighbor_data = get(adjacencyMatrix, vertex, nothing)
     for movement_data in neighbor_data
         other_vertex, duration, distance = movement_data
-        if (duration > duration_remaining ||
+        if (
+            duration > duration_remaining ||
             (vertex, other_vertex) in visited ||
-            (other_vertex, vertex) in visited)
+            (other_vertex, vertex) in visited
+        )
             continue
         end
 
@@ -59,13 +79,19 @@ function getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
     return (nothing, nothing)
 end
 
+"""
+    getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
+
+Compute a path in the city which can be traversed in total_duration time.
+
+Returns a Vector representing the path.
+"""
 function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
     output = [start_vertex]
     vertex = start_vertex
     duration_remaining = total_duration
     while duration_remaining > 0
-        res = getNextVertex(vertex, duration_remaining, visited,
-                            adjacencyMatrix)
+        res = getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
         next_vertex, travel_time = res
         if isnothing(next_vertex)
             break
@@ -83,28 +109,39 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
     return output
 end
 
-function findExtremelyNaiveSolution(start_vertex::Int64,
-                                    total_duration::Int64,
-                                    adjacencyMatrix)
+"""
+    findExtremelyNaiveSolution(start_vertex, total_duration, adjacencyMatrix)
+
+Compute paths in the city for all 8 cars.
+
+Returns a Vector containing all the paths. We compute the path using a greedy
+algorithm, where at each point of the path we aim to travel as much unique
+new distance as possible.
+"""
+function findExtremelyNaiveSolution(
+    start_vertex::Int64, total_duration::Int64, adjacencyMatrix
+)
     output = []
-    visited = Set{Tuple{Int64, Int64}}()
+    visited = Set{Tuple{Int64,Int64}}()
     for car in 1:8
         push!(
-            output,
-            getSinglePath!(
-                adjacencyMatrix, start_vertex, total_duration, visited
-            )
+            output, getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
         )
     end
 
     return output
 end
 
+"""
+    CityWalk(city, adjacencyMatrix)
+
+Compute paths in the city for all 8 cars and return a solution.
+
+Returns a Solution object representing the computed paths.
+"""
 function CityWalk(city, adjacencyMatrix)
     solution = findExtremelyNaiveSolution(
-        city.starting_junction,
-        city.total_duration,
-        adjacencyMatrix
+        city.starting_junction, city.total_duration, adjacencyMatrix
     )
 
     solution = Solution(solution)
@@ -112,6 +149,11 @@ function CityWalk(city, adjacencyMatrix)
     return solution
 end
 
+"""
+    main()
+
+Loads the city data, computes solutions, and stores them.
+"""
 function main()
     city = read_city()
     adjacencyMatrix = buildAdjacencyMatrix(city)
@@ -121,15 +163,12 @@ function main()
     println("Solution is feasible: ", is_feasible(solution, city))
     println("Distance covered by solution: ", total_distance(solution, city))
     println(
-        "Distance covered by default random walk: ",
-        total_distance(random_walk(city), city)
+        "Distance covered by default random walk: ", total_distance(random_walk(city), city)
     )
 
     semi_random_walk_dir = "found-solutions/semi-random-walk/"
     solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
-    plot_path = string(semi_random_walk_dir,
-                       "plots/most-recent-semi-random-plot.html"
-    )
+    plot_path = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
     write_solution(solution, solution_path)
     plot_streets(city, solution; path=plot_path)
 

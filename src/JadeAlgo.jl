@@ -18,7 +18,7 @@ function CityWalk()
     solutions_junctions = Dict{Int,Any}()
     solutions_streets = Dict()
 
-    #= 
+    #=
     current implementation doesn't allow bi directional travel. A different approach might be to define some
     cardinal heuristic points
     =#
