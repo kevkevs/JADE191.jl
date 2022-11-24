@@ -124,7 +124,15 @@ function main()
         "Distance covered by default random walk: ",
         total_distance(random_walk(city), city)
     )
-    write_solution(solution, "most_recent_solution.txt")
+
+    semi_random_walk_dir = "found-solutions/semi-random-walk/"
+    solution_path = semi_random_walk_dir + "most-recent-semi-random.txt"
+    plot_path = (
+        semi_random_walk_dir +
+        "plots/most-recent-semi-random-plot.html"
+    )
+    write_solution(solution, solution_path)
+    plot_streets(city, solution; path=plot_path)
 
     return solution
 end
