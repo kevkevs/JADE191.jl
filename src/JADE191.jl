@@ -83,11 +83,11 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
     return output
 end
 
-function findExtremelyNaiveSolution(start_vertex::Int,
-                                    total_duration::Int,
+function findExtremelyNaiveSolution(start_vertex::Int64,
+                                    total_duration::Int64,
                                     adjacencyMatrix)
     output = []
-    visited = []
+    visited = Set{Tuple{Int64, Int64}}()
     for car in 1:8
         push!(
             output,
@@ -126,10 +126,9 @@ function main()
     )
 
     semi_random_walk_dir = "found-solutions/semi-random-walk/"
-    solution_path = semi_random_walk_dir + "most-recent-semi-random.txt"
-    plot_path = (
-        semi_random_walk_dir +
-        "plots/most-recent-semi-random-plot.html"
+    solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
+    plot_path = string(semi_random_walk_dir,
+                       "plots/most-recent-semi-random-plot.html"
     )
     write_solution(solution, solution_path)
     plot_streets(city, solution; path=plot_path)
