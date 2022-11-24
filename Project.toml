@@ -4,10 +4,10 @@ authors = ["kevkevs <22803504+kevkevs@users.noreply.github.com> and contributors
 version = "0.1.0"
 
 [deps]
-Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 HashCode2014 = "7bbed249-721d-42ac-b1f6-7cf884be0fbe"
 
 [compat]
+HashCode2014 = "0.1.0"
 julia = "1.8"
 
 [extras]

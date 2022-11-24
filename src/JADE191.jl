@@ -1,5 +1,7 @@
 module JADE191
 
-# Write your package code here.
+export CityWalk
 
+# Write your package code here.
+include("JadeAlgo.jl")
 end
