@@ -3,11 +3,6 @@ using HashCode2014
 function CityWalk()
     city = read_city()
 
-    println(city.starting_junction)
-    println(city.junctions[city.starting_junction])
-
-    cycles_found = nothing
-
     # adjacency matrix: a[i,j] = street if street from junction i to junction j
     adjacencyMatrix = Matrix{Union{Street,Nothing}}(
         undef, size(city.junctions, 1), size(city.junctions, 1)
@@ -80,8 +75,8 @@ function CityWalk()
         Array{Street}(undef, 0),
     )
 
-    println("solutions' lengths: ", length(solutions_junctions))
-    println(keys(solutions_junctions))
+    #println("solutions' lengths: ", length(solutions_junctions))
+    #println(keys(solutions_junctions))
 
     # as a starting point it returns an itinerary where all cars have the same path
     function make_itinerary()
@@ -92,5 +87,6 @@ function CityWalk()
     end
 
     solution = Solution(make_itinerary())
+    write_solution(solution, "solution.txt")
     return is_feasible(solution, city)
 end
