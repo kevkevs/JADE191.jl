@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 HashCode2014 = "7bbed249-721d-42ac-b1f6-7cf884be0fbe"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
 HashCode2014 = "0.1.0"

@@ -149,6 +149,23 @@ function CityWalk(city, adjacencyMatrix)
     return solution
 end
 
+function read_from_file(filename)
+    xdata = Vector{Float64}()
+    ydata = Vector{Float64}()
+    open(filename) do f
+        for line in eachline(f)
+            xcor = parse(Float64, split(line, ",")[1])
+            ycor = parse(Float64, split(line, ",")[2])
+
+            push!(xdata, xcor)
+            push!(ydata, ycor)
+
+        end
+    end
+
+    return xdata, ydata
+end
+
 """
     main()
 
