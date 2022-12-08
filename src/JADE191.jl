@@ -1,6 +1,7 @@
 module JADE191
 
 using HashCode2014
+using PlotlyJS
 
 """
     buildAdjacencyMatrix(city)
@@ -166,30 +167,47 @@ function read_from_file(filename)
     return xdata, ydata
 end
 
-"""
-    main()
-
-Loads the city data, computes solutions, and stores them.
-"""
-function main()
-    city = read_city()
-    adjacencyMatrix = buildAdjacencyMatrix(city)
-
-    solution = CityWalk(city, adjacencyMatrix)
-
-    println("Solution is feasible: ", is_feasible(solution, city))
-    println("Distance covered by solution: ", total_distance(solution, city))
-    println(
-        "Distance covered by default random walk: ", total_distance(random_walk(city), city)
+function make_map(city)
+    trace = scattermapbox(
+                        ;mode="lines+markers",
+                        marker=attr(size=2),
+                        name="Paris Plot",
+                        lat=[],
+                        lon=[]
     )
 
-    semi_random_walk_dir = "found-solutions/semi-random-walk/"
-    solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
-    plot_path = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
-    write_solution(solution, solution_path)
-    plot_streets(city, solution; path=plot_path)
+    PARIS_LAT = 48.864716
+    PARIS_LON = 2.349014
+    layout = Layout(
+                    mapbox=attr(
+                        style="open-street-map",
+                        center=attr(lat=PARIS_LAT, lon=PARIS_LON),
+                        zoom=15,
+                        resolution=20
+                    ),
+                    autosize=true,
+                    center=attr(lat=38, lon=-90),
+                    margin=attr(l=0, r=0, t=0, b=0)
+    )
+    p = plot(trace, layout)
+    return p
+end
 
-    return solution
+function main()
+    city = read_city()
+
+    p = make_map(city)
+    PlotlyJS.display_blink(p)
+    sleep(1)
+
+    for junction in city.junctions
+        extendtraces!(
+            p,
+            Dict(:lat=>Vector[[junction.latitude]], :lon=>Vector[[junction.longitude]])
+        )
+        sleep(0.1)
+
+    end
 end
 
 end
