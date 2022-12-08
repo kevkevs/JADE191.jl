@@ -4,6 +4,7 @@ authors = ["kevkevs <22803504+kevkevs@users.noreply.github.com> and contributors
 version = "0.1.0"
 
 [deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 HashCode2014 = "7bbed249-721d-42ac-b1f6-7cf884be0fbe"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
