@@ -87,7 +87,7 @@ Compute a path in the city which can be traversed in total_duration time.
 
 Returns a Vector representing the path.
 """
-function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
+function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, city, p, car, paris_layout, traces)
     output = [start_vertex]
     vertex = start_vertex
     duration_remaining = total_duration
@@ -102,6 +102,18 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
         push!(visited, (next_vertex, vertex))
 
         push!(output, next_vertex)
+
+        extendtraces!(
+            p,
+            Dict(
+                :lat=>Vector[[city.junctions[next_vertex].latitude]],
+                :lon=>Vector[[city.junctions[next_vertex].longitude]]
+            ),
+            [car],
+            -1
+        )
+
+        sleep(0.01)
 
         vertex = next_vertex
         duration_remaining -= travel_time
@@ -120,14 +132,28 @@ algorithm, where at each point of the path we aim to travel as much unique
 new distance as possible.
 """
 function findExtremelyNaiveSolution(
-    start_vertex::Int64, total_duration::Int64, adjacencyMatrix
+    start_vertex::Int64, total_duration::Int64, adjacencyMatrix, city
 )
     output = []
     visited = Set{Tuple{Int64,Int64}}()
-    for car in 1:8
+
+    NUM_CARS = 8
+    paris_layout = get_paris_layout()
+    traces = [get_car_trace(i) for i in 1:NUM_CARS]
+    p = plot(
+        traces,
+        paris_layout
+    )
+    display(p)
+
+    for car in 1:NUM_CARS
+        # println(car)
+
         push!(
-            output, getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
+            output, getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, city, p, car, paris_layout, traces)
         )
+
+        # println(length(traces[car]["lat"]))
     end
 
     return output
@@ -142,7 +168,7 @@ Returns a Solution object representing the computed paths.
 """
 function CityWalk(city, adjacencyMatrix)
     solution = findExtremelyNaiveSolution(
-        city.starting_junction, city.total_duration, adjacencyMatrix
+        city.starting_junction, city.total_duration, adjacencyMatrix, city
     )
 
     solution = Solution(solution)
@@ -167,47 +193,48 @@ function read_from_file(filename)
     return xdata, ydata
 end
 
-function make_map(city)
-    trace = scattermapbox(
-                        ;mode="lines+markers",
-                        marker=attr(size=2),
-                        name="Paris Plot",
-                        lat=[],
-                        lon=[]
-    )
-
-    PARIS_LAT = 48.864716
+function get_paris_layout()
+    PARIS_LAT = 48.859716
     PARIS_LON = 2.349014
     layout = Layout(
                     mapbox=attr(
                         style="open-street-map",
                         center=attr(lat=PARIS_LAT, lon=PARIS_LON),
-                        zoom=15,
-                        resolution=20
+                        zoom=10,
                     ),
                     autosize=true,
-                    center=attr(lat=38, lon=-90),
-                    margin=attr(l=0, r=0, t=0, b=0)
+                    margin=attr(l=0, r=0, t=0, b=0),
+                    showlegend=true,
+                    legend=attr(
+                        x=0, y=1,
+                        font=attr(
+                            family="Courier",
+                            size=12,
+                            color="black"
+                        )
+                    )
     )
-    p = plot(trace, layout)
-    return p
+
+    return layout
+end
+
+function get_car_trace(car)
+    trace = scattermapbox(
+        ;mode="lines",
+        marker=attr(size=2),
+        name="car " * string(car),
+        lat=[],
+        lon=[]
+    )
+
+    return trace
 end
 
 function main()
     city = read_city()
-
-    p = make_map(city)
-    PlotlyJS.display_blink(p)
-    sleep(1)
-
-    for junction in city.junctions
-        extendtraces!(
-            p,
-            Dict(:lat=>Vector[[junction.latitude]], :lon=>Vector[[junction.longitude]])
-        )
-        sleep(0.1)
-
-    end
+    adjacencyMatrix = buildAdjacencyMatrix(city)
+    CityWalk(city, adjacencyMatrix)
+    return nothing
 end
 
 end
