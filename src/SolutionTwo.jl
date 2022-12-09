@@ -2,6 +2,10 @@ using HashCode2014
 using DataStructures
 using Distributed
 using ConcaveHull
+using Plots
+
+
+global_visited = Set{Tuple{Int64,Int64}}()
 
 # define a function to calculate the euclidean distance between two junctions
 function distance(junction1::Junction, junction2::Junction)
@@ -13,16 +17,27 @@ end
 function pick_junctions_on_hull(junctions::Vector{Junction}, n_cars::Int)
     # Compute the convex hull of the junctions
     junctions_dict = Dict([j.latitude, j.longitude] => j for j in junctions)
-    hull = concave_hull(collect(keys(junctions_dict))).vertices
+    hull = concave_hull(collect(keys(junctions_dict)))
+
+    #scatter(x,y,ms=1,label="",axis=false,grid=false,markerstrokewidth=0.0)
+    
+
+    hull = hull.vertices
 
     # Compute the total length of the hull
     total_length = sum(distance(junctions_dict[hull[i]], junctions_dict[hull[i+1]]) for i in 1:length(hull) - 1)
+    #println(distance(junctions_dict[hull[1]], junctions_dict[hull[2]]))
+    #println(total_length)
 
     # Compute the spacing between the junctions on the hull
-    spacing = total_length / (n_cars + 1)
+    spacing = 8 * total_length / (n_cars + 1)
 
     # Create a list to store the selected junctions
     selected = Vector{Junction}()
+    x = []
+    y = []
+
+    
 
     # Create a variable to store the current position on the hull
     current_pos = 0
@@ -38,93 +53,257 @@ function pick_junctions_on_hull(junctions::Vector{Junction}, n_cars::Int)
         if current_pos >= spacing
             # Add the junction to the list of selected junctions
             push!(selected, junctions_dict[junction])
+            append!(x, junction[1])
+            append!(y, junction[2])
 
             # Update the current position on the hull
-            current_pos -= spacing
+            current_pos = 0
+            prev_junction = junction
         end
     end
 
+    println("hull points: ", length(x))
+    #p = scatter(x,y,ms=1,label="",axis=false,grid=false,markerstrokewidth=0.0)
+    #plot!(p, hull)
+    #display(p)
+
     # Return the list of selected junctions
     return selected
+    
+    # Find the incenter and inradius of the concave hull
+    #incenter = incenter(hull)
+    #inradius = inradius(hull)
+
+    # Generate n_cars points on the circumference of the inscribed circle
+    #circumference_points = circumference(incenter, inradius, n_cars)
+
+    #return [ for i in circumference_points]
 end
 
-# https://stackoverflow.com/questions/48104390/julias-most-efficient-way-to-choose-longest-array-in-array-of-arrays
-function findlongest(A)
-    idx = 0
-    len = 0
-    @inbounds for i in 1:length(A)
-        l = length(A[i])
-        l > len && (idx = i; len=l)
-    end
-    return A[idx]
-end
 
-function max_street_length(graph, start_junction::Junction, duration::Int, goal::Junction, junctions::Vector{Junction}; visited = Set())
-    # Create a queue to store the junctions to visit lowest, priority = closest to heuristic
-    queue = PriorityQueue{Vector{Junction}, Float64}()
-    enqueue!(queue, [start_junction], distance(start_junction, goal))
+# implement Dijkstra's algorithm to find the longest path from the starting junction to the goal junction
+function Dijkstra_longest_path(graph, city::City, start::Int, goal::Int, time::Int)
+    # initialize the distances to all junctions to be infinity
+    num_junctions = length(city.junctions)
+    distances = fill(Inf, num_junctions)
 
-    # Create a list to store the paths taken by each car
-    paths = []
+    # initialize the distances to the starting junction to be 0
+    distances[start] = 0
 
-    # Create a variable to store the total length of streets traversed
-    total_length = 0
+    # initialize the unvisited set to be the set of all junctions
+    unvisited = Set{Int}(1:num_junctions)
 
-    # Create a variable to store the remaining time
-    remaining_time = duration
+    # initialize the visited set to be empty
+    visited = Set{Int}()
 
-    # While there are junctions to visit and there is still time remaining
-    while !isempty(queue) && remaining_time > 0
-        # Get the next junction to visit from the queue
-        curr_path = dequeue!(queue)
-        println(typeof(curr_path))
-        junction = curr_path[end]
+    # initialize the previous junction for each junction to be 0
+    previous = zeros(Int, num_junctions)
 
-        # If the junction has not been visited yet
-        if !(junction in visited)
-            # Mark the junction as visited
-            push!(visited, junction)
+    # while there are unvisited junctions
+    while !isempty(unvisited)
+        # find the unvisited junction with the smallest distance
+        current_junction = Inf
+        current = 0
+        for junction in unvisited
+            if distances[junction] < current_junction
+                current_junction = distances[junction]
+                current = junction
+            end
+        end
 
-            if junction == goal
-                push!(paths, curr_path)
+
+        # if the current junction is the goal junction, return the distance
+        if current == goal
+            # initialize the path to be empty
+            path = Vector{Int}()
+
+            # initialize the current junction to be the goal junction
+            current = goal
+
+            # while the current junction is not the starting junction
+            while current != start
+                # add the current junction to the path
+                pushfirst!(path, current)
+
+                # set the current junction to be the previous junction in the path
+                current = previous[current]
             end
 
-            # Iterate over all streets connected to the junction
-            for (junction, street) in graph[junction]
-                # Calculate the time it takes to traverse the street
-                t = street.duration
+            # add the starting junction to the path
+            pushfirst!(path, start)
+            total_time = 0
+            for i in 1:length(path)-1
+                total_time += graph[city.junctions[path[i]]][city.junctions[path[i+1]]].duration
+                push!(global_visited, (path[i], path[i+1]))
+                push!(global_visited, (path[i+1], path[i]))
+            end
+            #println("duration: ", total_time)
 
-                # If there is enough time remaining to traverse the street
-                if remaining_time >= t
-                    # Update the total length of streets traversed
-                    total_length += street.distance
+            # return the path and the distance
+            return path, total_time
+        end
 
-                    # Update the remaining time
-                    remaining_time -= t
+        # move the current junction from the unvisited set to the visited set
+        delete!(unvisited, current)
+        push!(visited, current)
 
-                    found_path_len, found_path = max_street_length(graph,junction, remaining_time, goal, junctions)
+        # for each neighbor of the current junction
+        for (neighbor_junc, street) in graph[city.junctions[current]]
+            # if the neighbor is not in the visited set
+            neighbor = street.endpointB
+            if !(neighbor in visited)
 
-                    # Add the junction at the other end of the street to the queue, using the heuristic to prioritize junctions closer to the goal
-                    next_route = [found_path..., junctions[street.endpointB]]
-                    enqueue!(queue, next_route, distance(junctions[street.endpointB], goal))
+                # if the street can be traversed in the given amount of time
+                if street.duration <= time
+                    # update the distance to the neighbor using the street length as the edge weight
+                    if distances[neighbor] > distances[current] + street.duration
+                        distances[neighbor] = distances[current] + street.duration
+                        previous[neighbor] = current
+                    end
                 end
             end
         end
     end
 
-
-    longest_path = findlongest(paths)
-
-    # Return the total length of streets traversed
-    return total_length, longest_path
+    # if the goal junction was not reached, return 0
+    return [], time
 end
 
-function parallel_max_street_length(graph, start_junction::Junction, duration::Int, n_cars::Int, hull::Vector{Junction}, junctions::Vector{Junction})
-    # Create a list of tasks to compute the maximum street length for each car
-    tasks = [max_street_length(graph, start_junction, duration, hull[i], junctions)[2] for i in 1:n_cars]
+"""
+    getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
+
+Compute the next vertex in a given walk.
+
+Returns a Tuple (N, T) where both elements are nothing if the function failed
+to find a street which is crossable in the amount of time left. If the
+function is able to find such a street, then N is the next vector in the path
+and T is the amount of time it takes to travel from the current vertex to N.
+"""
+function getNextVertex(city, vertex, duration_remaining, visited, graph)
+    current_max_distance = -Inf
+    current_next_vertex = nothing
+    current_duration = nothing
+    #neighbor_data = get(adjacencyMatrix, vertex, nothing)
+    vertex_key = city.junctions[vertex]
+    for (neighbor, street) in graph[vertex_key]
+        other_vertex = street.endpointB
+        if other_vertex == vertex
+            other_vertex = street.endpointA
+        end
+        duration = street.duration
+        distance = street.distance
+        if (
+            duration > duration_remaining ||
+            (vertex, other_vertex) in visited ||
+            (other_vertex, vertex) in visited
+        )
+            continue
+        end
+
+        if distance > current_max_distance
+            current_max_distance = distance
+            current_next_vertex = other_vertex
+            current_duration = duration
+        end
+    end
+
+    if !isnothing(current_next_vertex)
+        return (current_next_vertex, current_duration)
+    end
+
+    NUM_RANDOM_TRIALS = 10
+    for _ in 1:NUM_RANDOM_TRIALS
+        neighbor = rand(collect(keys(graph[vertex_key])))
+        street = graph[vertex_key][neighbor]
+        other_vertex = street.endpointB
+        if other_vertex == vertex
+            other_vertex = street.endpointA
+        end
+        duration = street.duration
+        
+        if duration <= duration_remaining
+            return (other_vertex, duration)
+        end
+    end
+
+    return (nothing, nothing)
+end
+
+"""
+    getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited)
+
+Compute a path in the city which can be traversed in total_duration time.
+
+Returns a Vector representing the path.
+"""
+function getSinglePath!(graph, city, start_vertex, total_duration, visited)
+    output = [start_vertex]
+    vertex = start_vertex
+    duration_remaining = total_duration
+    while duration_remaining > 0
+        res = getNextVertex(city, vertex, duration_remaining, visited, graph)
+        next_vertex, travel_time = res
+        if next_vertex == vertex
+            #println(vertex, " ")
+        end
+        if isnothing(next_vertex)
+            break
+        end
+
+        push!(visited, (vertex, next_vertex))
+        #push!(visited, (next_vertex, vertex))
+
+        push!(output, next_vertex)
+
+        vertex = next_vertex
+        duration_remaining -= travel_time
+    end
+
+    return output
+end
+
+
+
+function parallel_Dijkstra_longest_path(graph, city::City, start::Int, time::Int, n_cars::Int, hull::Vector{Junction})
+    tasks = [Dijkstra_longest_path(graph, city, start, findfirst(isequal(hull[i]), city.junctions), time) for i in 1:n_cars]
+
+    solution = Solution([i[1] for i in tasks])
+
+    println("half Solution is feasible: ", is_feasible(solution, city))
+    println("half Distance covered by solution: ", total_distance(solution, city))
+
+    semi_random_walk_dir = "found-solutions/semi-random-walk/"
+    solution_path = string(semi_random_walk_dir, "half-most-recent-semi-random.txt")
+    plot_path = string(semi_random_walk_dir, "plots/half-most-recent-semi-random-plot.html")
+    write_solution(solution, solution_path)
+    plot_streets(city, solution; path=plot_path)
+
+    output = []
+    visited = global_visited
+    for (path, t) in tasks
+        single_path = getSinglePath!(graph, city, path[end], city.total_duration - t, visited)[2:end]
+        new_path = [path; single_path]
+                
+        total_time = 0
+        for i in 1:length(new_path)-1
+            a = new_path[i]
+            b = new_path[i+1]
+            s = graph[city.junctions[a]][city.junctions[b]]
+            total_time += s.duration
+            if !HashCode2014.is_street(a, b, s)
+                println("bad street: ", a, " -> ", b)
+            end
+        end
+        if total_time > city.total_duration
+            println("over time")
+        end
+        
+
+        push!(output, new_path)
+    end
 
     # Wait for all tasks to complete and return the results
-    return tasks
+    return output
 end
 
 function make_graph(junctions::Vector{Junction}, streets::Vector{Street})
@@ -164,6 +343,22 @@ start = city.starting_junction
 hull = pick_junctions_on_hull(junctions, n_cars)
 graph = make_graph(junctions, streets)
 
-results = parallel_max_street_length(graph, junctions[start], time_limit, n_cars, hull, junctions)
+solution = parallel_Dijkstra_longest_path(graph, city, start, time_limit, n_cars, hull)
+#println(solution)
+
+#results = parallel_max_street_length(graph, junctions[start], time_limit, n_cars, hull, junctions)
 #total_length = sum(results)
 #println(results)
+
+
+solution = Solution(solution)
+
+println("Solution is feasible: ", is_feasible(solution, city))
+println("Distance covered by solution: ", total_distance(solution, city))
+
+semi_random_walk_dir = "found-solutions/semi-random-walk/"
+solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
+plot_path = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
+write_solution(solution, solution_path)
+plot_streets(city, solution; path=plot_path)
+
