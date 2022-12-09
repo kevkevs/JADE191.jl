@@ -1,6 +1,7 @@
 module JADE191
 
 using HashCode2014
+using PlotlyJS
 
 """
     buildAdjacencyMatrix(city)
@@ -149,7 +150,7 @@ Compute a path in the city which can be traversed in total_duration time.
 
 Returns a Vector representing the path.
 """
-function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
+function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
     output = [start_vertex]
     vertex = start_vertex
     duration_remaining = total_duration
@@ -164,6 +165,18 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
         push!(visited, (next_vertex, vertex))
 
         push!(output, next_vertex)
+
+        extendtraces!(
+            p,
+            Dict(
+                :lat=>Vector[[city.junctions[next_vertex].latitude]],
+                :lon=>Vector[[city.junctions[next_vertex].longitude]]
+            ),
+            [car],
+            -1
+        )
+
+        sleep(0.01)
 
         vertex = next_vertex
         duration_remaining -= travel_time
@@ -208,19 +221,29 @@ function findExtremelyNaiveSolution(
 )
     output = []
     visited = Set{Tuple{Int64,Int64}}()
+
     NUM_CARS = 8
+
+    paris_layout = get_paris_layout()
+    traces = [get_car_trace(i) for i in 1:NUM_CARS]
+    p = plot(
+        traces,
+        paris_layout
+    )
+    display(p)
+
     prev_distance = 0
     expected_diff_per_car = 200_000
     still_apply_expectation_max_value = 800_000
     MAX_NUM_RETRIES = 30
     for car in 1:NUM_CARS
-        potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
+        potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
         new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
         max_new_total_distance = new_total_distance
         max_new_path = potential_new_path
         num_retries = 0
         while prev_distance < still_apply_expectation_max_value && (max_new_total_distance - prev_distance < expected_diff_per_car) && num_retries < MAX_NUM_RETRIES
-            potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
+            potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
             new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
             if new_total_distance > max_new_total_distance
                 max_new_total_distance = new_total_distance
@@ -281,11 +304,43 @@ function read_from_file(filename)
     return xdata, ydata
 end
 
-"""
-    main()
+function get_paris_layout()
+    PARIS_LAT = 48.859716
+    PARIS_LON = 2.349014
+    layout = Layout(
+                    mapbox=attr(
+                        style="open-street-map",
+                        center=attr(lat=PARIS_LAT, lon=PARIS_LON),
+                        zoom=10,
+                    ),
+                    autosize=true,
+                    margin=attr(l=0, r=0, t=0, b=0),
+                    showlegend=true,
+                    legend=attr(
+                        x=0, y=1,
+                        font=attr(
+                            family="Courier",
+                            size=12,
+                            color="black"
+                        )
+                    )
+    )
 
-Loads the city data, computes solutions, and stores them.
-"""
+    return layout
+end
+
+function get_car_trace(car)
+    trace = scattermapbox(
+        ;mode="lines",
+        marker=attr(size=2),
+        name="car " * string(car),
+        lat=[],
+        lon=[]
+    )
+
+    return trace
+end
+
 function main()
     city = read_city()
 
