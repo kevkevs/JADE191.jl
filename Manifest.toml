@@ -1,11 +1,5 @@
 # This file is machine-generated - editing it directly is not advised
 
-[[Aqua]]
-deps = ["Compat", "Pkg", "Test"]
-git-tree-sha1 = "81ba3aaf28af90fcd3e6ead8450747e418e45a7b"
-uuid = "4c88cf16-eb10-579e-8560-4a9242c79595"
-version = "0.5.5"
-
 [[ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
 version = "1.1.1"
@@ -37,6 +31,12 @@ version = "0.2.14"
 git-tree-sha1 = "e08915633fcb3ea83bf9d6126292e5bc5c739922"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.13.0"
+
+[[DataStructures]]
+deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
+git-tree-sha1 = "d1fff3a548102f48987a52a2e0d114fa97d730f0"
+uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+version = "0.18.13"
 
 [[DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
