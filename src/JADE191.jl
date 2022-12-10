@@ -3,6 +3,85 @@ module JADE191
 using HashCode2014
 using PlotlyJS
 
+
+# implement Dijkstra's algorithm to find the shortest path in time from the starting junction to the goal junction
+function Dijkstra_longest_path(adjacencyMatrix, city::City, start::Int, goal_func, time::Int)
+    # initialize the distances to all junctions to be infinity
+    num_junctions = length(city.junctions)
+    distances = fill(Inf, num_junctions)
+
+    # initialize the distances to the starting junction to be 0
+    distances[start] = 0
+
+    # initialize the unvisited set to be the set of all junctions
+    unvisited = Set{Int}(1:num_junctions)
+
+    # initialize the visited set to be empty
+    visited = Set{Int}()
+
+    # initialize the previous junction for each junction to be 0
+    previous = zeros(Int, num_junctions)
+
+    # while there are unvisited junctions
+    while !isempty(unvisited)
+        # find the unvisited junction with the smallest distance
+        current_junction = Inf
+        current = 1
+        for junction in unvisited
+            if distances[junction] < current_junction
+                current_junction = distances[junction]
+                current = junction
+            end
+        end
+
+
+        # if the current junction is the goal junction, return the distance
+        if goal_func(current)
+            # initialize the path to be empty
+            path = Vector{Int}()
+
+            # while the current junction is not the starting junction
+            while current != start
+                # add the current junction to the path
+                pushfirst!(path, current)
+
+                # set the current junction to be the previous junction in the path
+                current = previous[current]
+            end
+
+            pushfirst!(path, start)
+            # return the path
+            return path
+        end
+
+        # move the current junction from the unvisited set to the visited set
+        delete!(unvisited, current)
+        push!(visited, current)
+
+        # for each neighbor of the current junction
+        for data in adjacencyMatrix[current]
+            # if the neighbor is not in the visited set
+
+            neighbor, street_duration, _ = data
+            if !(neighbor in visited)
+
+                # if the street can be traversed in the given amount of time
+                if street_duration <= time
+                    # update the distance to the neighbor using the street travel time as the edge weight
+                    if distances[neighbor] > distances[current] + street_duration
+                        distances[neighbor] = distances[current] + street_duration
+                        previous[neighbor] = current
+                    end
+                end
+            end
+        end
+    end
+
+    # if the goal junction was not reached, return 0
+    return []
+end
+
+
 """
     buildAdjacencyMatrix(city)
 
@@ -33,9 +112,9 @@ function buildAdjacencyMatrix(city)
     return adjacencyMatrix
 end
 
-function is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city)
-    longitude = city.junctions[other_vertex].longitude
-    latitude = city.junctions[other_vertex].latitude
+function is_above_line(vertex, bounding_longitude_data, bounding_latitude_data, city)
+    longitude = city.junctions[vertex].longitude
+    latitude = city.junctions[vertex].latitude
 
     longitude_lower_index = nothing
     for i in 1:(length(bounding_longitude_data) - 1)
@@ -59,6 +138,14 @@ function is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, boundin
     ) + bounding_latitude_data[longitude_lower_index]
 
     if latitude < latitude_interpolation
+        return true
+    end
+
+    return false
+end
+
+function is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city)
+    if is_above_line(other_vertex, bounding_longitude_data, bounding_latitude_data, city)
         return true
     end
 
@@ -384,6 +471,35 @@ function main()
     adjacencyMatrix = buildAdjacencyMatrix(city)
 
     bounding_longitude_data, bounding_latitude_data = read_from_file("src/dividing-line-coordinates.txt")
+
+    function make_goal_func(bounding_longitude_data, bounding_latitude_data, city)
+        function goal_func(vertex)
+            return is_above_line(vertex, bounding_longitude_data, bounding_latitude_data, city)
+        end
+
+        return goal_func
+    end
+
+    goal_func = make_goal_func(bounding_longitude_data, bounding_latitude_data, city)
+
+
+    paris_layout = get_paris_layout()
+    traces = [get_car_trace(i) for i in 1:8]
+    p = plot(
+        traces,
+        paris_layout
+    )
+    display(p)
+
+
+    adjacencyMatrix = buildAdjacencyMatrix(city)
+    path = Dijkstra_longest_path(adjacencyMatrix, city, city.starting_junction, goal_func, city.total_duration)
+    println(path)
+
+    plot_path(p, 1, path, city)
+
+    return nothing
+
     solution = CityWalk(city, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data)
 
     println("Solution is feasible: ", is_feasible(solution, city))
@@ -394,9 +510,9 @@ function main()
 
     semi_random_walk_dir = "found-solutions/semi-random-walk/"
     solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
-    plot_path = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
+    path_to_save_plot = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
     write_solution(solution, solution_path)
-    plot_streets(city, solution; path=plot_path)
+    plot_streets(city, solution; path=path_to_save_plot)
 
     return nothing
 end
