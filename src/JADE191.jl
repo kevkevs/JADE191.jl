@@ -80,7 +80,7 @@ to find a street which is crossable in the amount of time left. If the
 function is able to find such a street, then N is the next vector in the path
 and T is the amount of time it takes to travel from the current vertex to N.
 """
-function getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, car)
+function getNextVertex(vertex, duration_remaining, visited, new_visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, car)
     current_max_distance = -Inf
     current_next_vertex = nothing
     current_duration = nothing
@@ -90,7 +90,9 @@ function getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix, bou
         if (
             duration > duration_remaining ||
             (vertex, other_vertex) in visited ||
-            (other_vertex, vertex) in visited
+            (other_vertex, vertex) in visited ||
+            (vertex, other_vertex) in new_visited ||
+            (other_vertex, vertex) in new_visited
         )
             continue
         end
@@ -154,15 +156,17 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
     output = [start_vertex]
     vertex = start_vertex
     duration_remaining = total_duration
+
+    new_visited = Set{Tuple{Int64,Int64}}()
     while duration_remaining > 0
-        res = getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, car)
+        res = getNextVertex(vertex, duration_remaining, visited, new_visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, car)
         next_vertex, travel_time = res
         if isnothing(next_vertex)
             break
         end
 
-        push!(visited, (vertex, next_vertex))
-        push!(visited, (next_vertex, vertex))
+        push!(new_visited, (vertex, next_vertex))
+        push!(new_visited, (next_vertex, vertex))
 
         push!(output, next_vertex)
 
@@ -170,8 +174,7 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
         duration_remaining -= travel_time
     end
 
-    # println("Total distance traveled: ", compute_total_distance_traveled(adjacencyMatrix, output))
-    return output
+    return output, new_visited
 end
 
 function calculate_new_distance(output_so_far, new_path, car, city)
@@ -224,9 +227,8 @@ function findExtremelyNaiveSolution(
     bounding_longitude_data, bounding_latitude_data, city
 )
     output = []
-    visited = Set{Tuple{Int64,Int64}}()
 
-    NUM_CARS = 8
+    NUM_CARS = 4
 
     paris_layout = get_paris_layout()
     traces = [get_car_trace(i) for i in 1:NUM_CARS]
@@ -236,37 +238,65 @@ function findExtremelyNaiveSolution(
     )
     display(p)
 
-    prev_distance = 0
     expected_diff_per_car = 200_000
     still_apply_expectation_max_value = 800_000
-    MAX_NUM_RETRIES = 30
-    for car in 1:NUM_CARS
-        potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
-        new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
-        max_new_total_distance = new_total_distance
-        max_new_path = potential_new_path
-        num_retries = 0
-        while prev_distance < still_apply_expectation_max_value && (max_new_total_distance - prev_distance < expected_diff_per_car) && num_retries < MAX_NUM_RETRIES
-            potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
-            new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
-            if new_total_distance > max_new_total_distance
-                max_new_total_distance = new_total_distance
-                max_new_path = potential_new_path
+    current_max_paths = nothing
+    current_max_dist = -Inf
+    NUM_TRIALS = 5
+    MAX_ATTEMPTS = 30
+    for trial_num in 1:NUM_TRIALS
+        trial_paths = []
+        prev_distance = 0
+        visited = Set{Tuple{Int64,Int64}}()
+        for car in 1:NUM_CARS
+            potential_new_path, add_to_visited = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
+            new_total_distance = calculate_new_distance(trial_paths, potential_new_path, car, city)
+
+            max_new_total_distance = new_total_distance
+            max_new_path = potential_new_path
+            max_add_to_visited = add_to_visited
+
+            num_attempts = 1
+            while prev_distance < still_apply_expectation_max_value && (max_new_total_distance - prev_distance < expected_diff_per_car) && num_attempts < MAX_ATTEMPTS
+                potential_new_path, add_to_visited = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
+                new_total_distance = calculate_new_distance(trial_paths, potential_new_path, car, city)
+                if new_total_distance > max_new_total_distance
+                    max_new_total_distance = new_total_distance
+                    max_new_path = potential_new_path
+                    max_add_to_visited = add_to_visited
+                end
+                num_attempts += 1
             end
-            num_retries += 1
+
+            push!(trial_paths, max_new_path)
+            prev_distance = max_new_total_distance
+            for thing in max_add_to_visited
+                push!(visited, thing)
+            end
         end
 
-        # Add path to graph
-        plot_path(p, car, max_new_path, city)
+        trial_paths_dist = calculate_new_distance(trial_paths, trial_paths[1], 5, city)
+        if trial_paths_dist > current_max_dist
+            current_max_paths = trial_paths
+            current_max_dist = trial_paths_dist
+        end
 
-        prev_distance = max_new_total_distance
-        println("Distance from cars 1-", car, ": ", prev_distance)
-        push!(output, max_new_path)
+        println("trial_num: ", trial_num)
+        println("trial distance: ", trial_paths_dist)
     end
 
+    output = current_max_paths
+
+    println(
+        "Total distance traveled: ",
+        calculate_new_distance(output , output[1], 5, city)
+    )
+
     for car in 1:NUM_CARS
-        distance_traveled_by_car = calculate_new_distance([], output[car], 1, city)
+        path = output[car]
+        distance_traveled_by_car = calculate_new_distance([], path, 1, city)
         println("Distance traveled by car ", car, ": ", distance_traveled_by_car)
+        plot_path(p, car, path, city)
     end
 
     for _ in (NUM_CARS + 1):8
