@@ -150,7 +150,7 @@ Compute a path in the city which can be traversed in total_duration time.
 
 Returns a Vector representing the path.
 """
-function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
+function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
     output = [start_vertex]
     vertex = start_vertex
     duration_remaining = total_duration
@@ -165,18 +165,6 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
         push!(visited, (next_vertex, vertex))
 
         push!(output, next_vertex)
-
-        extendtraces!(
-            p,
-            Dict(
-                :lat=>Vector[[city.junctions[next_vertex].latitude]],
-                :lon=>Vector[[city.junctions[next_vertex].longitude]]
-            ),
-            [car],
-            -1
-        )
-
-        sleep(0.01)
 
         vertex = next_vertex
         duration_remaining -= travel_time
@@ -204,6 +192,22 @@ function calculate_new_distance(output_so_far, new_path, car, city)
     end
 
     return total_distance(Solution(new_output), city)
+end
+
+function plot_path(p, car, path, city)
+    for vertex in path
+        extendtraces!(
+            p,
+            Dict(
+                :lat=>Vector[[city.junctions[vertex].latitude]],
+                :lon=>Vector[[city.junctions[vertex].longitude]]
+            ),
+            [car],
+            -1
+        )
+
+        sleep(0.01)
+    end
 end
 
 """
@@ -237,13 +241,13 @@ function findExtremelyNaiveSolution(
     still_apply_expectation_max_value = 800_000
     MAX_NUM_RETRIES = 30
     for car in 1:NUM_CARS
-        potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
+        potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
         new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
         max_new_total_distance = new_total_distance
         max_new_path = potential_new_path
         num_retries = 0
         while prev_distance < still_apply_expectation_max_value && (max_new_total_distance - prev_distance < expected_diff_per_car) && num_retries < MAX_NUM_RETRIES
-            potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, p)
+            potential_new_path = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car)
             new_total_distance = calculate_new_distance(output, potential_new_path, car, city)
             if new_total_distance > max_new_total_distance
                 max_new_total_distance = new_total_distance
@@ -251,6 +255,9 @@ function findExtremelyNaiveSolution(
             end
             num_retries += 1
         end
+
+        # Add path to graph
+        plot_path(p, car, max_new_path, city)
 
         prev_distance = max_new_total_distance
         println("Distance from cars 1-", car, ": ", prev_distance)
