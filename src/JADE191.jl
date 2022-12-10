@@ -3,9 +3,10 @@ module JADE191
 using HashCode2014
 using PlotlyJS
 
-
 # implement Dijkstra's algorithm to find the shortest path in time from the starting junction to the goal junction
-function Dijkstra_longest_path(adjacencyMatrix, city::City, start::Int, goal_func, time::Int)
+function Dijkstra_longest_path(
+    adjacencyMatrix, city::City, start::Int, goal_func, time::Int
+)
     # initialize the distances to all junctions to be infinity
     num_junctions = length(city.junctions)
     distances = fill(Inf, num_junctions)
@@ -83,7 +84,6 @@ function Dijkstra_longest_path(adjacencyMatrix, city::City, start::Int, goal_fun
     return []
 end
 
-
 """
     buildAdjacencyMatrix(city)
 
@@ -146,7 +146,9 @@ function is_below_line(vertex, bounding_longitude_data, bounding_latitude_data, 
     return false
 end
 
-function is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city)
+function is_out_of_bounds(
+    vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city
+)
     if is_below_line(other_vertex, bounding_longitude_data, bounding_latitude_data, city)
         return true
     end
@@ -170,7 +172,17 @@ to find a street which is crossable in the amount of time left. If the
 function is able to find such a street, then N is the next vector in the path
 and T is the amount of time it takes to travel from the current vertex to N.
 """
-function getNextVertex(vertex, duration_remaining, visited, new_visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, should_stay_above)
+function getNextVertex(
+    vertex,
+    duration_remaining,
+    visited,
+    new_visited,
+    adjacencyMatrix,
+    bounding_longitude_data,
+    bounding_latitude_data,
+    city,
+    should_stay_above,
+)
     current_max_distance = -Inf
     current_next_vertex = nothing
     current_duration = nothing
@@ -187,7 +199,9 @@ function getNextVertex(vertex, duration_remaining, visited, new_visited, adjacen
             continue
         end
 
-        is_not_valid = is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city)
+        is_not_valid = is_out_of_bounds(
+            vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city
+        )
         if !should_stay_above
             is_not_valid = !is_not_valid
         end
@@ -210,7 +224,9 @@ function getNextVertex(vertex, duration_remaining, visited, new_visited, adjacen
     NUM_RANDOM_TRIALS = 10
     for _ in 1:NUM_RANDOM_TRIALS
         other_vertex, duration, _ = rand(neighbor_data)
-        is_not_valid = is_out_of_bounds(vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city)
+        is_not_valid = is_out_of_bounds(
+            vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city
+        )
         if !should_stay_above
             is_not_valid = !is_not_valid
         end
@@ -252,12 +268,24 @@ Compute a path in the city which can be traversed in total_duration time.
 
 Returns a Vector representing the path.
 """
-function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, should_stay_above)
+function getSinglePath!(
+    adjacencyMatrix,
+    start_vertex,
+    total_duration,
+    visited,
+    bounding_longitude_data,
+    bounding_latitude_data,
+    city,
+    car,
+    should_stay_above,
+)
     output = [start_vertex]
     if !should_stay_above
         function make_goal_func(bounding_longitude_data, bounding_latitude_data, city)
             function goal_func(vertex)
-                return is_below_line(vertex, bounding_longitude_data, bounding_latitude_data, city)
+                return is_below_line(
+                    vertex, bounding_longitude_data, bounding_latitude_data, city
+                )
             end
 
             return goal_func
@@ -265,7 +293,9 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
 
         goal_func = make_goal_func(bounding_longitude_data, bounding_latitude_data, city)
 
-        output, travel_time = Dijkstra_longest_path(adjacencyMatrix, city, city.starting_junction, goal_func, city.total_duration)
+        output, travel_time = Dijkstra_longest_path(
+            adjacencyMatrix, city, city.starting_junction, goal_func, city.total_duration
+        )
         total_duration -= travel_time
     end
 
@@ -274,7 +304,17 @@ function getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, 
 
     new_visited = Set{Tuple{Int64,Int64}}()
     while duration_remaining > 0
-        res = getNextVertex(vertex, duration_remaining, visited, new_visited, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data, city, should_stay_above)
+        res = getNextVertex(
+            vertex,
+            duration_remaining,
+            visited,
+            new_visited,
+            adjacencyMatrix,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            should_stay_above,
+        )
         next_vertex, travel_time = res
         if isnothing(next_vertex)
             break
@@ -329,26 +369,60 @@ function plot_path(p, car, path, city)
 end
 
 function trial(
-    adjacencyMatrix, start_vertex, total_duration,
-    bounding_longitude_data, bounding_latitude_data, city,
-    expected_diff_per_car, still_apply_expectation_max_value,
-    max_attempts, num_cars, trial_num, should_stay_above
+    adjacencyMatrix,
+    start_vertex,
+    total_duration,
+    bounding_longitude_data,
+    bounding_latitude_data,
+    city,
+    expected_diff_per_car,
+    still_apply_expectation_max_value,
+    max_attempts,
+    num_cars,
+    trial_num,
+    should_stay_above,
 )
     trial_paths = []
     prev_distance = 0
     visited = Set{Tuple{Int64,Int64}}()
     for car in 1:num_cars
-        potential_new_path, add_to_visited = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, should_stay_above)
-        new_total_distance = calculate_new_distance(trial_paths, potential_new_path, car, city)
+        potential_new_path, add_to_visited = getSinglePath!(
+            adjacencyMatrix,
+            start_vertex,
+            total_duration,
+            visited,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            car,
+            should_stay_above,
+        )
+        new_total_distance = calculate_new_distance(
+            trial_paths, potential_new_path, car, city
+        )
 
         max_new_total_distance = new_total_distance
         max_new_path = potential_new_path
         max_add_to_visited = add_to_visited
 
         num_attempts = 1
-        while prev_distance < still_apply_expectation_max_value && (max_new_total_distance - prev_distance < expected_diff_per_car) && num_attempts < max_attempts
-            potential_new_path, add_to_visited = getSinglePath!(adjacencyMatrix, start_vertex, total_duration, visited, bounding_longitude_data, bounding_latitude_data, city, car, should_stay_above)
-            new_total_distance = calculate_new_distance(trial_paths, potential_new_path, car, city)
+        while prev_distance < still_apply_expectation_max_value &&
+                  (max_new_total_distance - prev_distance < expected_diff_per_car) &&
+                  num_attempts < max_attempts
+            potential_new_path, add_to_visited = getSinglePath!(
+                adjacencyMatrix,
+                start_vertex,
+                total_duration,
+                visited,
+                bounding_longitude_data,
+                bounding_latitude_data,
+                city,
+                car,
+                should_stay_above,
+            )
+            new_total_distance = calculate_new_distance(
+                trial_paths, potential_new_path, car, city
+            )
             if new_total_distance > max_new_total_distance
                 max_new_total_distance = new_total_distance
                 max_new_path = potential_new_path
@@ -382,8 +456,13 @@ algorithm, where at each point of the path we aim to travel as much unique
 new distance as possible.
 """
 function findExtremelyNaiveSolution(
-    start_vertex::Int64, total_duration::Int64, adjacencyMatrix,
-    bounding_longitude_data, bounding_latitude_data, city; display_plot=false
+    start_vertex::Int64,
+    total_duration::Int64,
+    adjacencyMatrix,
+    bounding_longitude_data,
+    bounding_latitude_data,
+    city;
+    display_plot=false,
 )
     output = []
 
@@ -391,10 +470,7 @@ function findExtremelyNaiveSolution(
 
     paris_layout = get_paris_layout()
     traces = [get_car_trace(i) for i in 1:NUM_CARS]
-    p = plot(
-        traces,
-        paris_layout
-    )
+    p = plot(traces, paris_layout)
     if display_plot
         display(p)
     end
@@ -408,17 +484,24 @@ function findExtremelyNaiveSolution(
     current_max_dist = -Inf
     for trial_num in 1:NUM_TRIALS
         trial_paths, trial_paths_dist = trial(
-            adjacencyMatrix, start_vertex, total_duration,
-            bounding_longitude_data, bounding_latitude_data, city,
-            expected_diff_per_car, still_apply_expectation_max_value,
-            MAX_ATTEMPTS, 4, trial_num, true
+            adjacencyMatrix,
+            start_vertex,
+            total_duration,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            expected_diff_per_car,
+            still_apply_expectation_max_value,
+            MAX_ATTEMPTS,
+            4,
+            trial_num,
+            true,
         )
 
         if trial_paths_dist > current_max_dist
             current_max_paths = trial_paths
             current_max_dist = trial_paths_dist
         end
-
     end
 
     output = current_max_paths
@@ -427,17 +510,24 @@ function findExtremelyNaiveSolution(
     current_max_dist = -Inf
     for trial_num in 1:NUM_TRIALS
         trial_paths, trial_paths_dist = trial(
-            adjacencyMatrix, start_vertex, total_duration,
-            bounding_longitude_data, bounding_latitude_data, city,
-            expected_diff_per_car, still_apply_expectation_max_value,
-            MAX_ATTEMPTS, 4, trial_num, false
+            adjacencyMatrix,
+            start_vertex,
+            total_duration,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            expected_diff_per_car,
+            still_apply_expectation_max_value,
+            MAX_ATTEMPTS,
+            4,
+            trial_num,
+            false,
         )
 
         if trial_paths_dist > current_max_dist
             current_max_paths = trial_paths
             current_max_dist = trial_paths_dist
         end
-
     end
 
     for path in current_max_paths
@@ -528,9 +618,13 @@ function main()
 
     adjacencyMatrix = buildAdjacencyMatrix(city)
 
-    bounding_longitude_data, bounding_latitude_data = read_from_file("src/dividing-line-coordinates.txt")
+    bounding_longitude_data, bounding_latitude_data = read_from_file(
+        "src/dividing-line-coordinates.txt"
+    )
 
-    solution = CityWalk(city, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data)
+    solution = CityWalk(
+        city, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data
+    )
 
     println("Solution is feasible: ", is_feasible(solution, city))
     println("Distance covered by solution: ", total_distance(solution, city))
@@ -540,7 +634,9 @@ function main()
 
     semi_random_walk_dir = "found-solutions/semi-random-walk/"
     solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
-    path_to_save_plot = string(semi_random_walk_dir, "plots/most-recent-semi-random-plot.html")
+    path_to_save_plot = string(
+        semi_random_walk_dir, "plots/most-recent-semi-random-plot.html"
+    )
     write_solution(solution, solution_path)
     plot_streets(city, solution; path=path_to_save_plot)
 
