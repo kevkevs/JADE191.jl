@@ -4,9 +4,6 @@ using Distributed
 using ConcaveHull
 using Plots
 
-
-global_visited = Set{Tuple{Int64,Int64}}()
-
 # define a function to calculate the euclidean distance between two junctions
 function distance(junction1::Junction, junction2::Junction)
     dx = junction1.latitude - junction2.latitude
@@ -17,27 +14,16 @@ end
 function pick_junctions_on_hull(junctions::Vector{Junction}, n_cars::Int)
     # Compute the convex hull of the junctions
     junctions_dict = Dict([j.latitude, j.longitude] => j for j in junctions)
-    hull = concave_hull(collect(keys(junctions_dict)))
-
-    #scatter(x,y,ms=1,label="",axis=false,grid=false,markerstrokewidth=0.0)
-    
-
-    hull = hull.vertices
+    hull = concave_hull(collect(keys(junctions_dict))).vertices
 
     # Compute the total length of the hull
     total_length = sum(distance(junctions_dict[hull[i]], junctions_dict[hull[i+1]]) for i in 1:length(hull) - 1)
-    #println(distance(junctions_dict[hull[1]], junctions_dict[hull[2]]))
-    #println(total_length)
 
     # Compute the spacing between the junctions on the hull
     spacing = 8 * total_length / (n_cars + 1)
 
     # Create a list to store the selected junctions
     selected = Vector{Junction}()
-    x = []
-    y = []
-
-    
 
     # Create a variable to store the current position on the hull
     current_pos = 0
@@ -53,8 +39,6 @@ function pick_junctions_on_hull(junctions::Vector{Junction}, n_cars::Int)
         if current_pos >= spacing
             # Add the junction to the list of selected junctions
             push!(selected, junctions_dict[junction])
-            append!(x, junction[1])
-            append!(y, junction[2])
 
             # Update the current position on the hull
             current_pos = 0
@@ -62,22 +46,7 @@ function pick_junctions_on_hull(junctions::Vector{Junction}, n_cars::Int)
         end
     end
 
-    println("hull points: ", length(x))
-    #p = scatter(x,y,ms=1,label="",axis=false,grid=false,markerstrokewidth=0.0)
-    #plot!(p, hull)
-    #display(p)
-
-    # Return the list of selected junctions
     return selected
-    
-    # Find the incenter and inradius of the concave hull
-    #incenter = incenter(hull)
-    #inradius = inradius(hull)
-
-    # Generate n_cars points on the circumference of the inscribed circle
-    #circumference_points = circumference(incenter, inradius, n_cars)
-
-    #return [ for i in circumference_points]
 end
 
 
@@ -103,7 +72,7 @@ function Dijkstra_longest_path(graph, city::City, start::Int, goal::Int, time::I
     while !isempty(unvisited)
         # find the unvisited junction with the smallest distance
         current_junction = Inf
-        current = 0
+        current = 1
         for junction in unvisited
             if distances[junction] < current_junction
                 current_junction = distances[junction]
@@ -137,7 +106,6 @@ function Dijkstra_longest_path(graph, city::City, start::Int, goal::Int, time::I
                 push!(global_visited, (path[i], path[i+1]))
                 push!(global_visited, (path[i+1], path[i]))
             end
-            #println("duration: ", total_time)
 
             # return the path and the distance
             return path, total_time
@@ -243,9 +211,7 @@ function getSinglePath!(graph, city, start_vertex, total_duration, visited)
     while duration_remaining > 0
         res = getNextVertex(city, vertex, duration_remaining, visited, graph)
         next_vertex, travel_time = res
-        if next_vertex == vertex
-            #println(vertex, " ")
-        end
+        
         if isnothing(next_vertex)
             break
         end
@@ -267,37 +233,11 @@ end
 function parallel_Dijkstra_longest_path(graph, city::City, start::Int, time::Int, n_cars::Int, hull::Vector{Junction})
     tasks = [Dijkstra_longest_path(graph, city, start, findfirst(isequal(hull[i]), city.junctions), time) for i in 1:n_cars]
 
-    solution = Solution([i[1] for i in tasks])
-
-    println("half Solution is feasible: ", is_feasible(solution, city))
-    println("half Distance covered by solution: ", total_distance(solution, city))
-
-    semi_random_walk_dir = "found-solutions/semi-random-walk/"
-    solution_path = string(semi_random_walk_dir, "half-most-recent-semi-random.txt")
-    plot_path = string(semi_random_walk_dir, "plots/half-most-recent-semi-random-plot.html")
-    write_solution(solution, solution_path)
-    plot_streets(city, solution; path=plot_path)
-
     output = []
     visited = global_visited
     for (path, t) in tasks
         single_path = getSinglePath!(graph, city, path[end], city.total_duration - t, visited)[2:end]
         new_path = [path; single_path]
-                
-        total_time = 0
-        for i in 1:length(new_path)-1
-            a = new_path[i]
-            b = new_path[i+1]
-            s = graph[city.junctions[a]][city.junctions[b]]
-            total_time += s.duration
-            if !HashCode2014.is_street(a, b, s)
-                println("bad street: ", a, " -> ", b)
-            end
-        end
-        if total_time > city.total_duration
-            println("over time")
-        end
-        
 
         push!(output, new_path)
     end
@@ -343,18 +283,17 @@ start = city.starting_junction
 hull = pick_junctions_on_hull(junctions, n_cars)
 graph = make_graph(junctions, streets)
 
+global_visited = Set{Tuple{Int64,Int64}}()
+
 solution = parallel_Dijkstra_longest_path(graph, city, start, time_limit, n_cars, hull)
-#println(solution)
-
-#results = parallel_max_street_length(graph, junctions[start], time_limit, n_cars, hull, junctions)
-#total_length = sum(results)
-#println(results)
-
-
 solution = Solution(solution)
 
 println("Solution is feasible: ", is_feasible(solution, city))
 println("Distance covered by solution: ", total_distance(solution, city))
+while !is_feasible(solution, city)
+    solution = parallel_Dijkstra_longest_path(graph, city, start, time_limit, n_cars, hull)
+    solution = Solution(solution)
+end
 
 semi_random_walk_dir = "found-solutions/semi-random-walk/"
 solution_path = string(semi_random_walk_dir, "most-recent-semi-random.txt")
