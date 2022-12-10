@@ -3,7 +3,14 @@ module JADE191
 using HashCode2014
 using PlotlyJS
 
-# implement Dijkstra's algorithm to find the shortest path in time from the starting junction to the goal junction
+"""
+    Dijkstra_longest_path(adjacencyMatrix, city, start, goal_func, time)
+
+Perform Dijkstra shortest path algorithm.
+
+Finds the path of shortest time connecting start to any junction satisfying
+goal_func.
+"""
 function Dijkstra_longest_path(
     adjacencyMatrix, city::City, start::Int, goal_func, time::Int
 )
@@ -114,6 +121,14 @@ function buildAdjacencyMatrix(city)
     return adjacencyMatrix
 end
 
+"""
+    is_below_line(vertex, bounding_longitude_data, bounding_latitude_data, city)
+
+Calculate if the given vertex is located below or above the seperating curve.
+
+The map of Paris is split along the river that divides the city. Returns true
+if the given vertex is above that line and false if it is below that line.
+"""
 function is_below_line(vertex, bounding_longitude_data, bounding_latitude_data, city)
     longitude = city.junctions[vertex].longitude
     latitude = city.junctions[vertex].latitude
@@ -146,6 +161,14 @@ function is_below_line(vertex, bounding_longitude_data, bounding_latitude_data, 
     return false
 end
 
+"""
+    is_out_of_bounds(
+        vertex, other_vertex, bounding_longitude_data, bounding_latitude_data,
+        city
+    )
+
+Calculate if a vertex and another vertex are within according to the division.
+"""
 function is_out_of_bounds(
     vertex, other_vertex, bounding_longitude_data, bounding_latitude_data, city
 )
@@ -163,14 +186,19 @@ function is_out_of_bounds(
 end
 
 """
-    getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix)
+    getNextVertex(vertex, duration_remaining, visited, adjacencyMatrix,
+        bounding_longitude_data, bounding_latitude_data, city,
+        should_stay_above)
 
 Compute the next vertex in a given walk.
 
 Returns a Tuple (N, T) where both elements are nothing if the function failed
 to find a street which is crossable in the amount of time left. If the
 function is able to find such a street, then N is the next vector in the path
-and T is the amount of time it takes to travel from the current vertex to N.
+and T is the amount of time it takes to travel from the current vertex to N. If
+should_stay_above is true, then only vertices located above the dividing line
+are considered. If should_stay_above is false, then only vertices located below
+the dividing line are considered.
 """
 function getNextVertex(
     vertex,
@@ -241,24 +269,6 @@ function getNextVertex(
     end
 
     return (nothing, nothing)
-end
-
-function compute_total_distance_traveled(adjacencyMatrix, path)
-    total_distance = 0
-    for i in 1:(length(path) - 1)
-        start_vertex = path[i]
-        next_vertex = path[i + 1]
-
-        for data in adjacencyMatrix[start_vertex]
-            other_vertex, duration, distance = data
-            if other_vertex == next_vertex
-                total_distance += distance
-                break
-            end
-        end
-    end
-
-    return total_distance
 end
 
 """
@@ -332,6 +342,11 @@ function getSinglePath!(
     return output, new_visited
 end
 
+"""
+    calculate_new_distance(output_so_far, new_path, car, city)
+
+Calculate the new distance traveled by adding a new car path.
+"""
 function calculate_new_distance(output_so_far, new_path, car, city)
     default_value = new_path
     if car != 1
@@ -352,6 +367,11 @@ function calculate_new_distance(output_so_far, new_path, car, city)
     return total_distance(Solution(new_output), city)
 end
 
+"""
+    plot_path(p, car, path, city)
+
+Plot the path of a car traveling through the city.
+"""
 function plot_path(p, car, path, city)
     for vertex in path
         extendtraces!(
@@ -368,6 +388,24 @@ function plot_path(p, car, path, city)
     end
 end
 
+"""
+    trial(
+        adjacencyMatrix,
+        start_vertex,
+        total_duration,
+        bounding_longitude_data,
+        bounding_latitude_data,
+        city,
+        expected_diff_per_car,
+        still_apply_expectation_max_value,
+        max_attempts,
+        num_cars,
+        trial_num,
+        should_stay_above,
+    )
+
+Perform a single trial of finding four cars to map out a region of Paris.
+"""
 function trial(
     adjacencyMatrix,
     start_vertex,
@@ -447,15 +485,22 @@ function trial(
 end
 
 """
-    findExtremelyNaiveSolution(start_vertex, total_duration, adjacencyMatrix)
+    findSolution(start_vertex::Int64,
+        total_duration,
+        adjacencyMatrix,
+        bounding_longitude_data,
+        bounding_latitude_data,
+        city;
+        display_plot=false
+    )
 
 Compute paths in the city for all 8 cars.
 
 Returns a Vector containing all the paths. We compute the path using a greedy
-algorithm, where at each point of the path we aim to travel as much unique
-new distance as possible.
+algorithm which splits the map into two regions seperated by the river. At each
+point of the path we aim to travel as much unique new distance as possible.
 """
-function findExtremelyNaiveSolution(
+function findSolution(
     start_vertex::Int64,
     total_duration::Int64,
     adjacencyMatrix,
@@ -477,7 +522,7 @@ function findExtremelyNaiveSolution(
 
     expected_diff_per_car = 200_000
     still_apply_expectation_max_value = 800_000
-    NUM_TRIALS = 5
+    NUM_TRIALS = 1
     MAX_ATTEMPTS = 30
 
     current_max_paths = nothing
@@ -552,14 +597,14 @@ function findExtremelyNaiveSolution(
 end
 
 """
-    CityWalk(city, adjacencyMatrix)
+    CityWalk(city, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data)
 
 Compute paths in the city for all 8 cars and return a solution.
 
 Returns a Solution object representing the computed paths.
 """
 function CityWalk(city, adjacencyMatrix, bounding_longitude_data, bounding_latitude_data)
-    solution = findExtremelyNaiveSolution(
+    solution = findSolution(
         city.starting_junction,
         city.total_duration,
         adjacencyMatrix,
@@ -573,6 +618,11 @@ function CityWalk(city, adjacencyMatrix, bounding_longitude_data, bounding_latit
     return solution
 end
 
+"""
+    read_from_file(filename)
+
+Read the coordinates defining the splitting line through the river.
+"""
 function read_from_file(filename)
     xdata = Vector{Float64}()
     ydata = Vector{Float64}()
@@ -589,6 +639,9 @@ function read_from_file(filename)
     return xdata, ydata
 end
 
+"""
+    get_paris_layout()JADE191sed only for plotting.
+"""
 function get_paris_layout()
     PARIS_LAT = 48.859716
     PARIS_LON = 2.349014
@@ -605,6 +658,11 @@ function get_paris_layout()
     return layout
 end
 
+"""
+    get_car_trace(car)
+
+Return the trace of a car. This is used only for plotting.
+"""
 function get_car_trace(car)
     trace = scattermapbox(;
         mode="lines", marker=attr(; size=2), name="car " * string(car), lat=[], lon=[]
@@ -613,6 +671,11 @@ function get_car_trace(car)
     return trace
 end
 
+"""
+    main()
+
+Perform a single run of the path-finding algorithm.
+"""
 function main()
     city = read_city()
 
