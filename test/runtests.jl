@@ -50,7 +50,11 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
 
         city = read_city()
         result = is_out_of_bounds(
-            city.starting_junction, 668, bounding_longitude_data, bounding_latitude_data, city
+            city.starting_junction,
+            668,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
         )
         @test result == false
     end
@@ -78,7 +82,7 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
         duration = 500
         adjacencyMatrix = buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
-        push!(visited, (2,9573))
+        push!(visited, (2, 9573))
 
         result = getNextVertex()
         @test result == (nothing, nothing)
@@ -95,7 +99,7 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
         duration = 5000
         adjacencyMatrix = buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
-        
+
         result = getNextVertex()
         @test result == (nothing, nothing)
     end
@@ -111,7 +115,7 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
         duration = 5000
         adjacencyMatrix = buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
-        
+
         result = getNextVertex()
         @test result == (2122, 9)
     end
@@ -120,7 +124,7 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
         input_path = joinpath(@__DIR__, "data", "example_input.txt")
         city = read_city(input_path)
         adjacencyMatrix = buildAdjacencyMatrix(city)
-        
+
         result = compute_total_distance_traveled(adjacencyMatrix, [1, 2, 3])
         @test result == 450
     end

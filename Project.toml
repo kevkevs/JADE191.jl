@@ -7,10 +7,11 @@ version = "0.1.0"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 HashCode2014 = "7bbed249-721d-42ac-b1f6-7cf884be0fbe"
 PlotlyJS = "f0f68f2c-4968-5e81-91da-67840de0976a"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
+HTTP = "0.9.17"
 HashCode2014 = "0.1.0"
+PlotlyJS = "0.18.10"
 julia = "1.8"
 
 [extras]
