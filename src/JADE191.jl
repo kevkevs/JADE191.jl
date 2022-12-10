@@ -643,4 +643,30 @@ function main()
     return nothing
 end
 
+city = read_city()
+car = 1
+vertex = 2
+duration = 0
+adjacencyMatrix = JADE191.buildAdjacencyMatrix(city)
+visited = Set{Tuple{Int64,Int64}}()
+new_visited = Set{Tuple{Int64,Int64}}()
+should_stay_above = false
+bounding_longitude_data, bounding_latitude_data = read_from_file(
+    "src/dividing-line-coordinates.txt"
+)
+
+result = getNextVertex(
+    vertex,
+    duration,
+    visited,
+    new_visited,
+    adjacencyMatrix,
+    bounding_longitude_data,
+    bounding_latitude_data,
+    city,
+    should_stay_above,
+)
+
+display(result)
+
 end

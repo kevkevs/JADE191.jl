@@ -27,29 +27,31 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
     @testset verbose = true "Check adjacency matrix" begin
         input_path = joinpath(@__DIR__, "data", "example_input.txt")
         city = read_city(input_path)
-        expected = Dict(2 => (3, 45, 200), 3 => (2, 45, 200), 1 => (2, 30, 250))
-        @test buildAdjacencyMatrix(city) == expected
+        expected = Dict(
+            2 => Any[(3, 45, 200)], 3 => Any[(2, 45, 200)], 1 => Any[(2, 30, 250)]
+        )
+        @test JADE191.buildAdjacencyMatrix(city) == expected
     end
 
-    @testset verbose "Check boundary false 1" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check boundary false 1" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
-        result = is_out_of_bounds(
+        result = JADE191.is_out_of_bounds(
             city.starting_junction, 3, bounding_longitude_data, bounding_latitude_data, city
         )
         @test result == false
     end
 
-    @testset verbose "Check boundary false 2" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check boundary false 2" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
-        result = is_out_of_bounds(
+        result = JADE191.is_out_of_bounds(
             city.starting_junction,
             668,
             bounding_longitude_data,
@@ -59,73 +61,108 @@ DocMeta.setdocmeta!(JADE191, :DocTestSetup, :(using JADE191); recursive=true)
         @test result == false
     end
 
-    @testset verbose "Check boundary true" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check boundary true" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
-        result = is_out_of_bounds(
+        result = JADE191.is_out_of_bounds(
             city.starting_junction, 2, bounding_longitude_data, bounding_latitude_data, city
         )
         @test result == true
     end
 
-    @testset verbose "Check getNextVertex is None" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check getNextVertex is None" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
         car = 1
         vertex = 2
-        duration = 500
-        adjacencyMatrix = buildAdjacencyMatrix(city)
+        duration = 0
+        adjacencyMatrix = JADE191.buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
-        push!(visited, (2, 9573))
+        new_visited = Set{Tuple{Int64,Int64}}()
+        should_stay_above = false
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
+        )
 
-        result = getNextVertex()
+        result = JADE191.getNextVertex(
+            vertex,
+            duration,
+            visited,
+            new_visited,
+            adjacencyMatrix,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            should_stay_above,
+        )
         @test result == (nothing, nothing)
     end
 
-    @testset verbose "Check getNextVertex is None 2" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check getNextVertex is None 2" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
         car = 1
         vertex = 1
         duration = 5000
-        adjacencyMatrix = buildAdjacencyMatrix(city)
+        adjacencyMatrix = JADE191.buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
+        new_visited = Set{Tuple{Int64,Int64}}()
+        should_stay_above = true
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
+        )
 
-        result = getNextVertex()
+        result = JADE191.getNextVertex(
+            vertex,
+            duration,
+            visited,
+            new_visited,
+            adjacencyMatrix,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            should_stay_above,
+        )
         @test result == (nothing, nothing)
     end
 
-    @testset verbose "Check getNextVertex passes" begin
-        bounding_longitude_data, bounding_latitude_data = read_from_file(
-            "src/dividing-line-coordinates.txt"
+    @testset verbose = true "Check getNextVertex passes" begin
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
         )
 
         city = read_city()
         car = 1
         vertex = 4
         duration = 5000
-        adjacencyMatrix = buildAdjacencyMatrix(city)
+        adjacencyMatrix = JADE191.buildAdjacencyMatrix(city)
         visited = Set{Tuple{Int64,Int64}}()
+        new_visited = Set{Tuple{Int64,Int64}}()
+        should_stay_above = true
+        bounding_longitude_data, bounding_latitude_data = JADE191.read_from_file(
+            "../src/dividing-line-coordinates.txt"
+        )
 
-        result = getNextVertex()
+        result = JADE191.getNextVertex(
+            vertex,
+            duration,
+            visited,
+            new_visited,
+            adjacencyMatrix,
+            bounding_longitude_data,
+            bounding_latitude_data,
+            city,
+            should_stay_above,
+        )
         @test result == (2122, 9)
-    end
-
-    @testset verbose "Test compute_total_distance_traveled" begin
-        input_path = joinpath(@__DIR__, "data", "example_input.txt")
-        city = read_city(input_path)
-        adjacencyMatrix = buildAdjacencyMatrix(city)
-
-        result = compute_total_distance_traveled(adjacencyMatrix, [1, 2, 3])
-        @test result == 450
     end
 end
